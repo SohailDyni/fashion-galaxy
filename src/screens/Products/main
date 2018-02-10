@@ -1,0 +1,376 @@
+import React from 'react';
+import { 
+    View, Dimensions, FlatList, TouchableOpacity,
+    Text, Image, ActivityIndicator, Vibration, 
+} from 'react-native';
+
+import {  
+    Container, CardItem,
+    TabHeading, Tabs, Tab,
+    ScrollableTab, Card, Button
+} from 'native-base';
+import { RecyclerListView, DataProvider, LayoutProvider } from "recyclerlistview";
+
+const ViewTypes = {
+    FULL: 0,
+    HALF_LEFT: 1,
+    HALF_RIGHT: 2
+};
+import TopHeaderCat from '../TopHeaderCat';
+import { positions, themeColors } from '../../MaterialValues';
+import SubCategoryScreen from './SubCategoryScreen';
+import style from '../../components/Sidebar/style';
+
+const shallowequal = require('shallowequal');
+
+const WINDOW_WIDTH = Dimensions.get('window').width;
+
+class MainCategoryScreen extends React.Component {
+
+    static navigationOptions = ({ navigation }) => ({
+        header: <TopHeaderCat navigation={navigation} />
+    });
+
+    constructor(props) {
+        super(props);
+        this.state = {
+            data: [],
+            page: 1,
+            error: null,
+            loading: true,
+            refreshing: false,
+            subCats: [],
+            subProducts: [],
+        };
+        const { width } = Dimensions.get('window');
+
+        //Create the data provider and provide method which takes in two rows of data and return if those two are different or not.
+        //THIS IS VERY IMPORTANT, FORGET PERFORMANCE IF THIS IS MESSED UP
+
+        //Create the layout provider
+        //First method: Given an index return the type of item e.g ListItemType1, ListItemType2 in case you have variety of items in your list/grid
+        //Second: Given a type and object set the exact height and width for that type on given object, if you're using non deterministic rendering provide close estimates
+        //If you need data based check you can access your data provider here
+        //You'll need data in most cases, we don't provide it by default to enable things like data virtualization in the future
+        //NOTE: For complex lists LayoutProvider will also be complex it would then make sense to move it to a different file
+        this._layoutProvider = new LayoutProvider(
+            index => {
+                if (index % 2 === 0) {
+                    return ViewTypes.HALF_LEFT;
+                } 
+                return ViewTypes.HALF_RIGHT;
+            },
+            (type, dim) => {
+                switch (type) {
+                    case ViewTypes.HALF_LEFT:
+                        dim.width = width / 2;
+                        dim.height = 220;
+                        break;
+                    case ViewTypes.HALF_RIGHT:
+                        dim.width = width / 2;
+                        dim.height = 220;
+                        break;
+                    case ViewTypes.FULL:
+                        dim.width = width;
+                        dim.height = 140;
+                        break;
+                    default:
+                        dim.width = 0;
+                        dim.height = 0;
+                }
+            }
+        );
+
+        this._rowRenderer = this._rowRenderer.bind(this);
+
+        //Since component should always render once data has changed, make data provider part of the state
+    }
+    
+    componentDidMount() {
+        this.makeRemoteRequestForCats();        
+        this.makeRemoteRequest();
+    }
+
+    _rowRenderer(type, data) {
+        //You can return any view here, CellContainer has no special significance
+        console.log(data);
+        switch (type) {
+            case ViewTypes.HALF_LEFT:
+                return (
+                    <View style={styles.containerGridLeft}>
+                        <Text>Data: </Text>
+                    </View>
+                );
+            case ViewTypes.HALF_RIGHT:
+                return (
+                    <View style={styles.containerGridRight}>
+                        <Text>Data: </Text>
+                    </View>
+                );
+            case ViewTypes.FULL:
+                return (
+                    <View style={styles.container}>
+                        <Text>Data: </Text>
+                    </View>
+                );
+            default:
+                return null;
+        }
+    }
+
+    shouldComponentUpdate(nextProps, nextState) {
+
+        if (shallowequal(this.state, nextState) && shallowequal(this.props, nextProps)) {
+            return false;
+        }
+        return true; 
+    }
+    onCardPressed = product => this.props.navigation.navigate('ProductDetail', { product });    
+    
+    makeRemoteRequest = () => {
+        const { params } = this.props.navigation.state;
+
+        let catId = '';
+        if ('catId' in params) {
+            catId = `&category=${params.catId}`;
+        }
+
+        try {
+          fetch(`https://fashiongalaxy.pk/wp-json/wc/v2/products?per_page=10&status=publish&page=${this.state.page}&consumer_key=ck_f67cf0524d5255e440c15b79eefd5baf3727e9b4&consumer_secret=cs_bd2d40e087738b7fcad5f576ba426cb20efaca5a${catId}`)
+            .then(res => res.json())
+            .then(res => {
+                this.setState({
+                    data: this.state.page === 1 ? res : [...this.state.data, ...res],
+                    loading: false,
+                    refreshing: false
+                });
+            }).catch(error => console.log(error));
+        } catch (error) {
+          console.error(error);
+          this.setState({
+              error,
+              loading: false
+          });
+        }
+    };
+
+    makeRemoteRequestForProducts = (id) => {
+        try {
+          fetch(`https://fashiongalaxy.pk/wp-json/wc/v2/products?per_page=10&page=${this.state.page}&consumer_key=ck_f67cf0524d5255e440c15b79eefd5baf3727e9b4&consumer_secret=cs_bd2d40e087738b7fcad5f576ba426cb20efaca5a&category=${id}`)
+            .then(res => res.json())
+            .then(res => {
+                this.setState({
+                    loading: false,
+                    refreshing: false
+                });
+                return res;
+            }).catch(error => console.log(error));
+        } catch (error) {
+          console.error(error);
+          this.setState({
+              error,
+              loading: false
+          });
+        }
+    };
+
+    makeRemoteRequestForCats = () => {
+        const catId = this.props.navigation.state.params.catId;
+        
+        try {
+          fetch(`https://fashiongalaxy.pk/wp-json/wc/v2/products/categories?parent=${catId}&per_page=20&consumer_key=ck_f67cf0524d5255e440c15b79eefd5baf3727e9b4&consumer_secret=cs_bd2d40e087738b7fcad5f576ba426cb20efaca5a&hide_empty=true`)
+            .then(res => res.json())
+            .then(res => {
+                this.setState({
+                    subCats: res,
+                    loading: false,
+                    refreshing: false
+                });
+            }).catch(error => console.log(error));
+        } catch (error) {
+          console.error(error);
+          this.setState({
+              error,
+              loading: false
+            });
+        }
+    }
+
+    handleLoadMore = () => {
+        this.setState(
+            {
+            page: this.state.page + 1
+            },
+            () => {
+            this.makeRemoteRequest();
+            }
+        );
+    };
+
+
+    renderProduct = (type, product) => (
+        <ListItem 
+            product={product}
+            navigation={this.props.navigation}
+        />
+    );
+    
+
+    renderContent() {
+        const dataProvider = new DataProvider((r1, r2) => r1 !== r2);
+        if (this.state.loading) {
+            return (
+                <View 
+                    style={[positions.alignItemCenter, positions.justifyContentCenter, { flex: 1 }]}
+                >
+                    <ActivityIndicator size="large" />
+                </View>
+            );
+        } 
+        if (this.state.subCats.length !== 0) {
+            const subProductsTabs = this.state.subCats.map((cat, index) => (
+                <Tab 
+                    heading={
+                        <TabHeading 
+                            style={{ backgroundColor: themeColors.color2 }} 
+                        >
+                            <Text style={{ color: 'white' }}>{ cat.name }</Text>
+                        </TabHeading>
+                    } 
+                    key={index}
+                >
+                    <SubCategoryScreen navigation={this.props.navigation} catId={cat.id} />
+                </Tab>
+            ));
+            return (
+                <Tabs 
+                    renderTabBar={() => <ScrollableTab />}
+                >
+                    <Tab 
+                        heading={
+                            <TabHeading 
+                                style={{ backgroundColor: themeColors.color2 }} 
+                            >
+                            <Text style={{ color: 'white' }}>All</Text>
+                            </TabHeading>
+                        }
+                    >
+                        {this.state.data.length === 0 && 
+                        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                            <Text>No Product found.</Text>
+                        </View>}
+                       {this.state.data.length > 0 && 
+                            // <View>
+                            //     <FlatList
+                            //         style={styles.container}
+                            //         numColumns={2}
+                            //         data={this.state.data}
+                            //         renderItem={({ item }) => this.renderProduct(item)}
+                            //         // onEndReachedThreshold={0.3}
+                            //         // onEndReached={this.handleLoadMore}
+                            //         getItemLayout={(data, index) => (
+                            //             { length: 40, offset: 40 * index, index }
+                            //         )}
+                            //         keyExtractor={(item) => item.id}
+                            //     />
+                            //     <Button
+                            //         full
+                            //         outline
+                            //     >
+                            //         <Text>Load More</Text>
+                            //     </Button>
+                            // </View>
+                            <RecyclerListView 
+                                layoutProvider={this._layoutProvider} 
+                                dataProvider={dataProvider.cloneWithRows(this.state.data)} 
+                                rowRenderer={this._rowRenderer} 
+                                keyExtractor={(item) => item.id}
+                            />
+
+                          
+                        }
+
+                    </Tab>
+    
+                    { subProductsTabs }
+    
+                </Tabs>
+            );
+        }
+
+        return (
+            <FlatList
+                style={styles.container}
+                numColumns={2}
+                data={this.state.data}
+                renderItem={({ item }) => this.renderProduct(item)}
+                onEndReachedThreshold={0.3}
+                onEndReached={this.handleLoadMore}
+                keyExtractor={(item) => item.id}
+            />
+        );
+    }
+
+    
+    render() {
+        return (
+            <Container>
+                { this.renderContent() }
+            </Container>
+        );
+    }
+
+}
+
+class ListItem extends React.PureComponent {
+
+    onCardPressed = product => this.props.navigation.navigate('ProductDetail', { product });    
+    
+
+    render() {
+        const { product } = this.props;
+        console.log(product);
+        return (
+            <Card>
+                <TouchableOpacity onPress={() => this.onCardPressed(product)}>
+                <CardItem cardBody>
+                    <Image
+                        style={styles.image}
+                        resizeMode="stretch"
+                        source={{ uri: product.images[0].src }}  
+                    />
+                </CardItem>
+                <CardItem style={styles.titleContainer}>
+                    <Text>{product.name}</Text>
+                    <Text style={styles.priceStyle}>Rs. {product.price }</Text>
+                </CardItem>
+                </TouchableOpacity>
+            </Card>
+        );
+    }
+}
+
+const styles = {
+    container: {
+        paddingLeft: 5, 
+        paddingRight: 5
+    },
+    titleContainer: {
+        flexDirection: 'column', 
+        alignItems: 'flex-start'
+    },
+    image: {
+        height: 190, 
+        // width: (WINDOW_WIDTH / 2) - 30,
+        width: null,
+        flex: 1,
+        resizeMode: 'stretch'
+        // alignSelf: 'contain',
+    },
+    priceStyle: {
+        fontWeight: 'bold',
+    }
+  
+};
+
+export default MainCategoryScreen;

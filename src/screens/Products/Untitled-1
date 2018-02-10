@@ -1,0 +1,903 @@
+import React, { Component } from 'react';
+import {
+  Animated,
+  Platform,
+  StyleSheet,
+  View,
+  Text as NText,
+  Dimensions,
+  TouchableWithoutFeedback,
+  TouchableOpacity,
+  FlatList, Image
+} from 'react-native';
+import {  
+    Card, Button, Fab, Icon, Right, Title,
+    CardItem, Col, Row, Header, Text, Footer, 
+} from 'native-base';
+import Color from 'react-native-material-color';
+import { connect } from 'react-redux';
+import Carousel, { Pagination } from 'react-native-snap-carousel';
+import Animation from 'lottie-react-native';
+import IconBadge from 'react-native-icon-badge';
+
+import SliderEntrySingle from '../../components/SliderEntrySingle';
+import { colors, Carouselstyles } from '../../styles/index.style';
+import { metrics, fonts } from '../../MaterialValues';
+import * as actions from '../../actions';
+
+///////// CONSTANTS ////////
+const { width: WINDOW_WIDTH, height: WINDOW_HEIGHT } = Dimensions.get("window");
+const SLIDER_1_FIRST_ITEM = 0;
+// initial aspect ratio 4:3, collapsed: 16:9
+const HERO_WIDTH = WINDOW_WIDTH;
+const HERO_HEIGHT = WINDOW_WIDTH * (3 / 4);
+const DIALOG_WIDTH = metrics.baselineGrid * 40;
+const DIALOG_HEIGHT = DIALOG_WIDTH * (9 / 16);
+
+
+const HEADER_MAX_HEIGHT = (WINDOW_HEIGHT / 2) - 50;
+const HEADER_MIN_HEIGHT = Platform.OS === 'ios' ? 70 : 73;
+const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
+
+class ProductDetailScreen extends Component {
+	constructor(props) {
+        super(props);
+        const { attributes } = props.navigation.state.params.product;
+        let colorSelected = '';
+        let sizeSelected = '';
+        for (let i = 0; i < attributes.length; i++) {
+            if (attributes[i].name === 'color') {
+                colorSelected = attributes[i].options[0];
+            }
+            if (attributes[i].name === 'Sizes' || attributes[i].name === 'Size') {
+                sizeSelected = attributes[i].options[0];
+            }
+        }
+		this.state = {
+			scrollY: new Animated.Value(0),
+			excerpt: true,
+			colorSelected,
+			sizeSelected,
+            quantitySelected: 1,
+            slider1ActiveSlide: SLIDER_1_FIRST_ITEM,
+            slider1Ref: null,
+            isFavorite: false,
+            activeFab: false,
+            relatedProducts: [],
+            page: 1,
+            loading: false,
+            productId: props.navigation.state.params.product.id,
+            colors: {},
+            sizes: {}
+        };
+        this._heartProgress = new Animated.Value(0);
+    }
+
+
+    componentDidMount() {
+        this.getTags();
+        this.makeRemoteRequest();
+    }
+
+    onCardPressed = product => this.props.navigation.navigate('ProductDetail', { product });  
+    
+    
+    setSelectedOption = (name, opt) => {
+        if (opt === 'colors') {
+            this.setState({ colorSelected: name });
+        }
+        if (opt === 'sizes') {
+            this.setState({ sizeSelected: name });
+        }
+    }
+
+    getDescription(description) {
+        const plainText = this.strip_html_tags(description);
+		if (this.state.excerpt) {
+			return plainText.substring(0, 200);
+		}
+        return plainText;
+    }    
+    
+    getImagesGallery(item) {
+        return { uri: item.src };
+    }
+
+    getTags() {
+        this.props.navigation.state.params.product.tags.map(tag => {
+            this.tags.push(tag.id);
+        });
+    }
+    
+    tags = [];
+    
+	_renderScrollViewContent() {
+		const data = Array.from({ length: 30 });
+		return (
+			<View style={styles.scrollViewContent}>
+			{data.map((_, i) => (
+				<View key={i} style={styles.row}>
+				<Text>{i}</Text>
+				</View>
+			))}
+			</View>
+		);
+    }
+    
+	strip_html_tags(str) {
+        if ((str === null) || (str === '')) {
+			return false;
+        }
+        str = str.toString();
+        str = str.replace(/<[^>]*>/g, '');
+        str = str.replace(/&amp;/g, '&');
+        return str.replace(/\s\s/g, '');
+    }
+    
+    _renderItemWithParallax({ item, index }, parallaxProps) {
+        return (
+            <SliderEntrySingle
+              data={item}
+              even={(index + 1) % 2 === 0}
+              parallax={false}
+              parallaxProps={parallaxProps}
+              showText={false}
+              productCarousel={false}
+            />
+        );
+    }
+
+
+    initializeAttrs(attributes) {    
+        for (let i = 0; i < attributes.length; i++) {
+            if (attributes[i].id === 1) {
+                this.setState({
+                    colors: attributes[i]
+                });
+            }
+            if (attributes[i].name === 'Sizes' || attributes[i].name === 'Size') {
+                this.setState({
+                    sizes: attributes[i]
+                });
+            }
+        }
+    }
+
+    initializeDefaultAttrs(attributes) {    
+        for (let i = 0; i < attributes.length; i++) {
+            if (attributes[i].name === 'color') {
+                //this.setState({ colorSelected: attributes[i].options[0]  });
+            }
+            if (attributes[i].name === 'Sizes' || attributes[i].name === 'Size') {
+                this.setState({ sizeSelected: 'Large' });
+            }
+        }
+    }
+
+    renderOptions = (opt) => {
+        if (opt === 'sizes') {
+            //let sizeOpt = this.sizes.options.reverse();
+
+            return this.sizes.options.map((option) => {
+                    let optionName = option;
+                    if (option === 'Small' || option === 'Medium' || option === 'Large') {
+                        optionName = option.charAt(0);
+                    }
+                    return (
+                    <Button
+                        style={[
+                        styles.badges,
+                        ]} 
+                        key={option} 
+                        onPress={() => this.setSelectedOption(option, 'sizes')} 
+                    >
+                        <NText style={{ color: '#000000', fontSize: 12 }}>{ optionName }</NText>
+                        {this.state.sizeSelected === option && <View
+                            style={styles.checkMark}
+                        >
+                            <Icon name="ios-checkmark" style={styles.checkMarkIcon} />
+                        </View>}
+                    </Button>
+                    );
+                }
+            );
+        }
+
+        if (opt === 'colors') {
+            return this.colors.options.map((option, index) => (
+                <View style={{ flexDirection: 'column' }} key={index}>
+                        <Button 
+                            style={[
+                            styles.badgesColored, { backgroundColor: Color[option],
+                            borderColor: option === 'White' ? '#000000' : 'transparent' }
+                            ]} 
+                            onPress={() => this.setState({
+                                colorSelected: option
+                            })}
+                        >
+                            {true && <View
+                                style={styles.checkMark}
+                            >
+                                <Icon name="ios-checkmark" style={styles.checkMarkIcon} />
+                            </View>}
+                        </Button>
+                        <Text style={{ fontSize: 12, marginTop: 5 }}>{ option }</Text>
+                </View>
+                ) 
+            );
+        }
+    }
+    
+    
+    makeRemoteRequest = () => {
+        console.log(`exclude=[${this.state.productId}]`);
+        try {
+          fetch(`https://fashiongalaxy.pk/wp-json/wc/v2/products?per_page=10&page=${this.state.page}&consumer_key=ck_f67cf0524d5255e440c15b79eefd5baf3727e9b4&consumer_secret=cs_bd2d40e087738b7fcad5f576ba426cb20efaca5a&tag=${this.tags}&exclude=[${this.state.productId}]`)
+            .then(res => res.json())
+            .then(res => {
+                this.setState({
+                    relatedProducts: 
+                        this.state.page === 1 ? 
+                        res : [...this.state.relatedProducts, ...res],
+                    loading: false,
+                    refreshing: false
+                });
+            });
+        } catch (error) {
+          console.error(error);
+          this.setState({
+              error,
+              loading: false
+          });
+        }
+    };
+
+    renderRelatedProduct = product => (
+        <Card>
+            <TouchableOpacity onPress={() => this.onCardPressed(product)}>
+                <CardItem cardBody>
+                    <Image 
+                        source={{ uri: product.images[0].src }}  
+                        style={styles.RPimage}
+                    />
+                </CardItem>
+                <CardItem style={styles.RPtitleContainer}>
+                    <Text>{product.name }</Text>
+                    <Text style={styles.RPpriceStyle}>Rs. {product.price }</Text>
+                </CardItem>
+            </TouchableOpacity>
+        </Card>
+    );
+
+    renderVaraiations(type, hasColors, hasSizes) {
+        console.log(type, hasColors, hasSizes);
+        
+        if (type === 'variable') {
+            return (
+                <View>
+                    { hasColors && <CardItem>
+                        <Col>
+                            <Text style={styles.badgesHeading}>Colors</Text>
+                            <View style={styles.badgesContainer}>
+                                { this.renderOptions('colors') }
+                            </View>
+                        </Col>
+                    </CardItem>}
+
+                    { hasSizes && <CardItem>
+                        <Col>
+                            <Text style={styles.badgesHeading}>Sizes</Text>
+                            <View style={styles.badgesContainer}>
+                                { this.renderOptions('sizes') }
+                            </View>
+                        </Col>
+                    </CardItem>}
+                </View>
+            );
+        }
+    }
+
+    render() {
+        const { navigation } = this.props;
+        const product = navigation.state.params.product;
+        const toggleHeart = () => {
+            const toValue = this.state.isFavorite ? 0 : 1;
+            Animated.timing(this._heartProgress, {
+                toValue,
+                duration: 700,
+            }).start(() => this.setState({
+                isFavorite: !this.state.isFavorite,
+            }));
+            this.props.addToWishlist(product);
+        };
+
+        const headerTranslate = this.state.scrollY.interpolate({
+            inputRange: [0, HEADER_SCROLL_DISTANCE],
+            outputRange: [0, -HEADER_SCROLL_DISTANCE],
+            extrapolate: 'clamp',
+        });  
+        
+        const imageOpacity = this.state.scrollY.interpolate({
+            inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+            outputRange: [1, 1, 0],
+            extrapolate: 'clamp',
+        });
+        const imageTranslate = this.state.scrollY.interpolate({
+            inputRange: [0, HEADER_SCROLL_DISTANCE],
+            outputRange: [0, 100],
+            extrapolate: 'clamp',
+        });
+
+        const titleScale = this.state.scrollY.interpolate({
+            inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+            outputRange: [1, 1, 0.9],
+            extrapolate: 'clamp',
+        });
+        const titleTranslate = this.state.scrollY.interpolate({
+            inputRange: [0, HEADER_SCROLL_DISTANCE / 2, HEADER_SCROLL_DISTANCE],
+            outputRange: [0, 0, -8],
+            extrapolate: 'clamp',
+        });
+        const variableProd = product.type === 'variable';
+
+        if (variableProd) { 
+            this.initializeAttrs(product.attributes);
+        //    this.initializeDefaultAttrs(product.attributes); 
+        }
+
+        const hasSizes = Object.keys(this.state.sizes).length > 0;
+        const hasColors = Object.keys(this.state.colors).length > 0;
+
+
+        const { slider1ActiveSlide, slider1Ref } = this.state;
+        const newRender = 'test';
+        console.log(this.state.colors);
+        // const newRender = this.state.colors.options.map((option, index) => (
+        //     <View style={{ flexDirection: 'column' }} key={index}>
+        //             <Button 
+        //                 style={[
+        //                 styles.badgesColored, { backgroundColor: Color[option],
+        //                 borderColor: option === 'White' ? '#000000' : 'transparent' }
+        //                 ]} 
+        //                 onPress={() => this.setState({
+        //                     colorSelected: option
+        //                 })}
+        //             >
+        //                 {true && <View
+        //                     style={styles.checkMark}
+        //                 >
+        //                     <Icon name="ios-checkmark" style={styles.checkMarkIcon} />
+        //                 </View>}
+        //             </Button>
+        //             <Text style={{ fontSize: 12, marginTop: 5 }}>{ option }</Text>
+        //     </View>
+        //     ) 
+        // );
+
+        // console.log(this.state.slider1Ref); 
+        return (
+        <View style={styles.fill}>
+            {/* <StatusBar
+                translucent
+                barStyle="light-content"
+                backgroundColor="rgba(0, 0, 0, 0.251)"
+            /> */}
+            <Animated.ScrollView
+                style={styles.fill}
+                scrollEventThrottle={1}
+                onScroll={Animated.event(
+                [{ nativeEvent: { contentOffset: { y: this.state.scrollY } } }],
+                { useNativeDriver: true },
+                )}
+            >
+
+            <View style={styles.scrollViewContent}>
+                <Card>
+                    <Text style={styles.titleText}>{product.name}</Text>
+                    <Text style={styles.priceText}>Rs { product.price }</Text>
+                    <Text style={styles.descriptionText}>
+                        { this.getDescription(product.short_description) }
+                    </Text>
+                    <Button 
+                    block block transparent 
+                    onPress={() => this.setState({ excerpt: !this.state.excerpt })}
+                    >
+                        <Text>Show { this.state.excerpt ? 'more' : 'less' }</Text>
+                    </Button>
+                </Card>
+                <Card>
+                    {product.type === 'variable' && 
+                        <View>
+                            { hasColors && <CardItem>
+                                <Col>
+                                    <Text style={styles.badgesHeading}>Colors</Text>
+                                    <View style={styles.badgesContainer}>
+                                        <Text>{ newRender }</Text>
+                                    </View>
+                                </Col>
+                            </CardItem>}
+
+                            { hasSizes && <CardItem>
+                                <Col>
+                                    <Text style={styles.badgesHeading}>Sizes</Text>
+                                    <View style={styles.badgesContainer}>
+                                        {/* { this.renderOptions('sizes') } */}
+                                    </View>
+                                </Col>
+                            </CardItem>}
+                        </View>
+                    }
+                    <CardItem style={{ alignItems: 'center' }}>
+                        <Text>Quantity</Text>
+                        <Row style={{ alignItems: 'center', marginLeft: 50 }}>
+                            <Button 
+                                style={styles.incDecButton}
+                                onPress={() => { 
+                                    this.setState(
+                                        { quantitySelected: this.state.quantitySelected + 1 
+                                    });
+                                }}
+                            >
+                                <NText>+</NText>
+                            </Button>
+                            <Text style={{ paddingLeft: 10, paddingRight: 10 }}>
+                                { this.state.quantitySelected }
+                            </Text>
+                            <Button 
+                                style={styles.incDecButton}
+                                onPress={() => { 
+                                    if (this.state.quantitySelected > 1) {
+                                        this.setState(
+                                            { quantitySelected: this.state.quantitySelected - 1 }
+                                        ); 
+                                    }
+                                }}
+                            >
+                                <NText>-</NText>
+                            </Button>
+                        </Row>
+                    </CardItem>
+                    
+                </Card>
+
+            </View> 
+
+            <View>
+                {/* relate products */}
+                <Text style={styles.titleText}>Related Products</Text>
+                <FlatList
+                    numColumns={2}
+                    data={this.state.relatedProducts}
+                    renderItem={({ item }) => this.renderRelatedProduct(item)}
+                    keyExtractor={(item) => item.id}
+                />
+            </View>  
+
+
+            </Animated.ScrollView>
+            <Animated.View
+                style={[
+                styles.header,
+                { transform: [{ translateY: headerTranslate }] },
+                ]}
+            >
+                <Animated.View
+                style={[
+                    styles.backgroundImage,
+                    {
+                    opacity: imageOpacity,
+                    transform: [{ translateY: imageTranslate }],
+                    },
+                ]}
+                >
+                
+                <Carousel
+                    ref={(c) => { 
+                        if (!this.state.slider1Ref) { 
+                            this.setState({ slider1Ref: c }); 
+                            } 
+                        }
+                    }
+                    data={product.images}
+                    renderItem={this._renderItemWithParallax}
+                    sliderWidth={WINDOW_WIDTH}
+                    itemWidth={WINDOW_WIDTH}
+                    hasParallaxImages
+                    firstItem={SLIDER_1_FIRST_ITEM}
+                    inactiveSlideScale={1}
+                    inactiveSlideOpacity={1}
+                    enableMomentum={false}
+                    containerCustomStyle={Carouselstyles.slider}
+                    contentContainerCustomStyle={Carouselstyles.sliderContentContainer}
+                    onSnapToItem={(index) => this.setState({ slider1ActiveSlide: index })}
+                />
+                <Pagination
+                    dotsLength={product.images.length}
+                    activeDotIndex={slider1ActiveSlide}
+                    containerStyle={Carouselstyles.paginationContainer}
+                    dotColor={'rgba(255, 255, 255, 0.92)'}
+                    dotStyle={Carouselstyles.paginationDot}
+                    inactiveDotColor={colors.black}
+                    inactiveDotOpacity={0.4}
+                    inactiveDotScale={0.6}
+                    carouselRef={slider1Ref}
+                    tappableDots={!!slider1Ref}
+                /> 
+                
+                <View style={{ position: 'absolute', top: '20%', right: 0 }}>
+                    <TouchableWithoutFeedback onPress={() => toggleHeart()}>
+                        <Animation 
+                        source={require('../../animations/heart.json')}
+                        style={styles.toolbarHeart}
+                        progress={this._heartProgress} 
+                        />
+                    </TouchableWithoutFeedback>
+                </View>
+            
+                </Animated.View> 
+                
+            </Animated.View>
+            
+            <Animated.View
+                style={[
+                styles.bar,
+                {
+                    transform: [
+                    { scale: titleScale },
+                    { translateY: titleTranslate },
+                    ],
+                },
+                ]}
+            >
+                <Header style={styles.headerNav} searchBar>
+                    <Row>
+                        <Icon 
+                        name="md-arrow-round-back"
+                        onPress={() => navigation.goBack()}
+                            style={styles.headerIcon}
+                        />
+                        <Title style={styles.title}>{ product.name }</Title>
+                    </Row>
+                    <Right>
+                        <IconBadge
+                            MainElement={
+                            <TouchableOpacity style={styles.iconButton}>
+                                <Icon 
+                                style={styles.headerIcon} name="md-cart" 
+                                onPress={() => navigation.navigate('CartScreen')}
+                                />
+                            </TouchableOpacity>
+                            }
+                            BadgeElement={
+                            <Text 
+                            style={{ color: '#FFFFFF', fontSize: 10 }}
+                            >
+                                {this.props.cartLength}
+                            </Text>
+                            }
+                            IconBadgeStyle={{ 
+                                width: 4,
+                                height: 18,
+                                top: 0,
+                                right: 0,
+                                borderRadius: 15,
+                                backgroundColor: 'rgb(247,64,68)'
+                            }}
+                            Hidden={this.props.cartLength === 0}
+                        />
+                    </Right>
+                </Header>
+                    
+            </Animated.View>
+
+            {/* <View style={{ }}>
+                <Fab
+                    active={this.state.activeFab}
+                    direction="up"
+                    containerStyle={{ bottom: 10 }}
+                    style={{ backgroundColor: '#5067FF' }}
+                    position="bottomRight"
+                    onPress={() => this.setState({ activeFab: !this.state.activeFab })}
+                >
+                    <Icon name="md-share" />
+                    <Button style={{ backgroundColor: '#34A34F', alignItems: 'center' }}>
+                    <Icon name="logo-whatsapp" style={{ width: 25, }} />
+                    </Button>
+                    <Button style={{ backgroundColor: '#3B5998', }}>
+                    <Icon name="logo-facebook" style={{ width: 25, }} />
+                    </Button>
+                    <Button small style={{ backgroundColor: '#DD5144' }}>
+                    <Icon name="mail" style={{ width: 25, }} />
+                    </Button>
+                </Fab>
+            </View> */}
+
+            
+            <Footer>
+                <Button 
+                iconLeft full 
+                onPress={() => {
+                        this.props.addToCart(
+                            {
+                                product,
+                                quantity: this.state.quantitySelected,
+                                color: variableProd ? this.state.colorSelected : null,
+                                size: variableProd ? this.state.sizeSelected : null,
+                            }
+                        );
+                    }}
+                    style={{ flex: 1, height: '100%', justifyContent: 'center' }}
+                ><Icon name="md-cart" style={{ fontSize: 20 }} /> 
+                <Text>  Add to Cart</Text>
+                </Button>
+            </Footer>
+        </View>
+        );
+        }
+}
+
+const styles = StyleSheet.create({
+    fill: {
+      flex: 1,
+    },
+    content: {
+      flex: 1,
+    },
+    header: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: '#03A9F4',
+      overflow: 'hidden',
+      height: HEADER_MAX_HEIGHT,
+    },
+    headerNav: {
+      backgroundColor: 'transparent', 
+      borderColor: 'transparent',
+      alignItems: 'flex-end', 
+      height: 50, 
+      paddingBottom: 10,
+    //   justifyContent: 'space-between',
+      width: WINDOW_WIDTH 
+    },
+    backgroundImage: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      //width: null,
+      height: HEADER_MAX_HEIGHT,
+    },
+    bar: {
+      backgroundColor: 'transparent',
+      marginTop: Platform.OS === 'ios' ? 18 : 24,
+      //height: 32,
+      // alignItems: 'center',
+      // justifyContent: 'center',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+    },
+    fabButton: {
+        width: 45, height: 45, borderRadius: 45, 
+    },
+    fabButtonIcon: {
+        
+    },
+    title: {
+      color: 'white',
+      fontSize: 18,
+      marginLeft: 20
+    },
+    headerIcon: {
+        color: 'black',
+        fontSize: 28,
+        lineHeight: 25,
+    },
+    scrollViewContent: {
+      marginTop: HEADER_MAX_HEIGHT,
+    },
+    row: {
+      height: 40,
+      margin: 16,
+      backgroundColor: '#D3D3D3',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+  
+    actionButtonIcon: {
+      fontSize: 20,
+      height: 22,
+      color: 'white',
+    },
+    actionButton: {
+        position: 'absolute',
+        bottom: 70,
+    },
+    badgesContainer: {
+        flexDirection: 'row',
+    },
+    badges: {
+        width: 40,
+        height: 40,
+        marginRight: 10,
+        borderRadius: 50,
+        backgroundColor: '#eeeeee',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowRadius: 5,
+        shadowOffset: {
+            height: 0,
+            width: 0
+        },
+        elevation: 7
+    },
+    checkMark: {
+    width: 40,
+    height: 40,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute', 
+    top: 0,
+    bottom: 0,
+    right: 0,
+    left: 0,
+    backgroundColor: 'rgba(254,196,70,0.8)',
+    },
+    checkMarkIcon: {
+    fontSize: 35,
+    width: 30,
+    height: 40,
+    color: 'black',
+    alignSelf: 'center',
+    textAlign: 'center'
+    },
+    badgesColored: {
+        width: 40,
+        height: 40,
+        marginRight: 10,
+        borderRadius: 50,
+    // elevation: 1
+
+    },
+    badgesColoredText: {
+    width: '100%', 
+    height: '100%',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 50,
+
+    },
+    badgesHeading: {
+        marginTop: metrics.baselineGrid,
+        marginBottom: metrics.baselineGrid,
+    },
+    badgesDivider: {
+        backgroundColor: '#00000075',
+        marginTop: metrics.screenEdgeMarginHorizontal,
+    },
+    incDecButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 0,
+        backgroundColor: '#eeeeee',
+        justifyContent: 'center',
+        alignItems: 'center',
+
+    },
+    window: {
+    flex: 1,
+    },
+    heroImage: {
+    width: HERO_WIDTH,
+    height: HERO_HEIGHT,
+    },
+    titleContainer: {
+    backgroundColor: '#efefef',
+    padding: metrics.screenEdgeMarginHorizontal,
+    },
+    titleText: {
+    ...fonts.sizes.headline,
+    //   ...fonts.families.sansSerifCondensed
+    margin: metrics.screenEdgeMarginHorizontal
+    },
+    descriptionText: {
+    marginLeft: metrics.screenEdgeMarginHorizontal,
+    marginRight: metrics.screenEdgeMarginHorizontal,
+    marginBottom: metrics.baselineGrid,
+    textAlign: 'justify',
+    },
+    fullScreen: {
+    //   position: 'absolute',
+    //   left: 0,
+    //   right: 0,
+    //   top: 0,
+    //   bottom: 0,
+    },
+    priceContainer: {
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    right: 0,
+    paddingLeft: metrics.screenEdgeMarginHorizontal,
+    paddingRight: metrics.screenEdgeMarginHorizontal,
+    paddingTop: metrics.gutterVertical,
+    paddingBottom: metrics.gutterVertical,
+    },
+    priceText: {
+        ...fonts.sizes.title,
+    fontWeight: 'bold',
+    marginLeft: metrics.screenEdgeMarginHorizontal,
+    marginRight: metrics.screenEdgeMarginHorizontal,
+    marginBottom: metrics.baselineGrid,
+
+    },
+    dialog: {
+    backgroundColor: '#FAFAFA',
+    elevation: metrics.elevation.dialog,
+    alignSelf: 'center',
+    paddingLeft: metrics.baselineGrid * 8,
+    paddingRight: metrics.baselineGrid * 8,
+    paddingTop: metrics.baselineGrid * 4,
+    paddingBottom: metrics.baselineGrid * 4,
+    width: DIALOG_WIDTH,
+    height: DIALOG_HEIGHT,
+    justifyContent: 'center',
+    // alignItems: 'center',
+    },
+    fabContainer: {
+    position: 'absolute',
+    right: -4,
+    elevation: metrics.elevation.fabResting,
+    // backgroundColor: 'green',
+    },
+    fab: {
+        position: 'absolute',
+        right: metrics.screenEdgeMarginHorizontal,
+    },
+    toolbarHeart: {
+    width: 250,
+    height: 250,
+    marginRight: -50,
+    },
+    badge: {
+        position: 'absolute', top: -8, width: 15, height: 15, right: 0, alignItems: 'center'
+    },
+    iconButton: {
+        paddingLeft: 0, paddingRight: 0,
+    },
+    badgeText: {
+        fontSize: 10, 
+        paddingLeft: 0, 
+        paddingBottom: 0, 
+        paddingRight: 0, 
+        paddingTop: 0, 
+        marginTop: 0,
+    },
+    icon: {
+        fontSize: 30,
+    },
+    RPtitleContainer: {
+        flexDirection: 'column', 
+        alignItems: 'flex-start'
+    },
+    RPimage: {
+        height: 150,         
+        width: null,
+        flex: 1,
+        resizeMode: 'stretch'
+    },
+    RPpriceStyle: {
+        fontWeight: 'bold',
+    }
+});
+  
+
+function mapStateToProps(state) {
+  return { cartLength: state.cart.length };
+}
+
+export default connect(mapStateToProps, actions)(ProductDetailScreen);
