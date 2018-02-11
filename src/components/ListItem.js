@@ -23,7 +23,7 @@ export default class ListItem extends React.PureComponent {
     render() {
         const { product } = this.props;
         return (
-            <Card>
+            <Card style={{ flex: 0.5 }}>
                 <TouchableOpacity onPress={() => this.onCardPressed(product)}>
                 <CardItem cardBody>
                     <Image

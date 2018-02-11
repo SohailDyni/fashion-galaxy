@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dimensions, View } from 'react-native';
+import { Dimensions, View , FlatList} from 'react-native';
 import { Spinner } from 'native-base';
 import { RecyclerListView, DataProvider, LayoutProvider } from 'recyclerlistview';
 
@@ -62,7 +62,7 @@ export default class ProductRows extends React.Component {
     onCardPressed = product => this.props.navigation.navigate('ProductDetail', { product });    
     
 
-    renderProduct = (type, product) => (
+    renderProduct = (product) => (
         <ListItem 
             product={product}
             navigation={this.props.navigation}
@@ -81,15 +81,24 @@ export default class ProductRows extends React.Component {
         const dataProvider = new DataProvider((r1, r2) => r1 !== r2);
         const { data } = this.props;
         return (
-            <RecyclerListView 
+            // <RecyclerListView 
+            //     {...this.props}
+            //     layoutProvider={this._layoutProvider} 
+            //     dataProvider={dataProvider.cloneWithRows(data)} 
+            //     rowRenderer={this._rowRenderer} 
+            //     keyExtractor={(item) => item.id}
+            //     onEndReachedThreshold={350}
+            //     renderFooter={() => this.renderFooter()}
+            // /> 
+            <FlatList
                 {...this.props}
-                layoutProvider={this._layoutProvider} 
-                dataProvider={dataProvider.cloneWithRows(data)} 
-                rowRenderer={this._rowRenderer} 
+                numColumns={2}
+                data={data}
+                renderItem={({ item }) => this.renderProduct(item)}
                 keyExtractor={(item) => item.id}
                 onEndReachedThreshold={350}
-                renderFooter={() => this.renderFooter()}
-            /> 
+                ListFooterComponent={() => this.renderFooter()}
+            />
         );
     }
 }

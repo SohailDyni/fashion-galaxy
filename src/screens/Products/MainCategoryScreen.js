@@ -62,15 +62,14 @@ class MainCategoryScreen extends React.Component {
           fetch(`https://fashiongalaxy.pk/wp-json/wc/v2/products?per_page=10&status=publish&page=${this.state.page}&consumer_key=ck_f67cf0524d5255e440c15b79eefd5baf3727e9b4&consumer_secret=cs_bd2d40e087738b7fcad5f576ba426cb20efaca5a${catId}`)
             .then(res => res.json())
             .then(res => {
-                if (res.length !== 0) {
+                if (res.length !== 0 ) {
                     this.setState({
-                        data: this.state.page === 1 ? res : [...this.state.data, ...res],
+                        data: this.state.data.concat(res),
                         loading: false,
                         refreshing: false
                     });
                 } else {
                     this.setState({
-                        noProducts: true,
                         loading: false,
                         refreshing: false
                     });
@@ -129,7 +128,7 @@ class MainCategoryScreen extends React.Component {
                 </View>
             );
         } 
-        if (subCats.length !== 0) {
+        if (subCats.length > 1) {
             const subProductsTabs = subCats.map((cat, index) => (
                 <Tab 
                     heading={
