@@ -17,6 +17,8 @@ class SubCategoryScreen extends React.Component {
             error: null,
             loading: true,
             refreshing: false,
+            loadingMore: false,
+            noMoreProducts: false
         };
     }
     
@@ -34,7 +36,8 @@ class SubCategoryScreen extends React.Component {
                 this.setState({
                     data: this.state.page === 1 ? res : [...this.state.data, ...res],
                     loading: false,
-                    refreshing: false
+                    refreshing: false,
+                    loadingMore: false
                 });
             }).catch(error => console.log(error));
         } catch (error) {
@@ -48,15 +51,26 @@ class SubCategoryScreen extends React.Component {
 
 
     handleLoadMore = () => {
-        this.setState(
-            {
-            page: this.state.page + 1
-            },
-            () => {
-            this.makeRemoteRequest();
-            }
-        );
+        if( !this.state.noMoreProducts ){
+            this.setState(
+                {
+                page: this.state.page + 1,
+                loadingMore: true
+                },
+                () => {
+                this.makeRemoteRequest();
+                }
+            );
+        }
     };
+
+    handleRefresh = () => {
+        this.setState({
+            refreshing: true,
+            page: 1,
+            data: []
+        }, () => this.makeRemoteRequest());
+    }
 
 
     renderContent() {
@@ -76,7 +90,10 @@ class SubCategoryScreen extends React.Component {
             <ProductRows 
                 data={data} 
                 onEndReached={this.handleLoadMore}
-                navigation={this.props.navigation}
+                navigation={this.props.navigation} 
+                refreshing={this.state.refreshing}
+                onRefresh={() => this.handleRefresh()}
+                loading={this.state.loadingMore}
             />
         );
     }

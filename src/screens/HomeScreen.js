@@ -348,7 +348,7 @@ class HomeScreen extends React.Component {
         this.setState({ sendMsg: true });
 
         try {
-            fetch(`http://coupons.fashiongalaxy.pk/send_sms.php?number=${phoneNumber}&password=fashiongalaxy.PK&code=${modaCouponCode}`)
+            fetch(`https://fashiongalaxy.pk/api-coupon/?number=${phoneNumber}&consumer_key=ck_f67cf0524d5255e440c15b79eefd5baf3727e9b4&consumer_secret=cs_bd2d40e087738b7fcad5f576ba426cb20efaca5a`)
             .then(res => res.json())
             .then(res => this.setState({ couponRes: res.msg, sendMsg: false }))
             .catch(err => console.log(err));
@@ -708,7 +708,7 @@ class HomeScreen extends React.Component {
                             <TextInput
                                 style={[cstyles.dialogInput]}
                                 onChangeText={val => this.setState({ phoneNumber: val })}
-                                placeholder={'start typing'}
+                                placeholder={'Format: 923xxxxxxxxx'}
                                 autoFocus
                                 underlineColorAndroid="white"
                                 onSubmitEditing={() => this.sendMessage()}

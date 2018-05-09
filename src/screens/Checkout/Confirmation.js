@@ -109,15 +109,15 @@ class Confirmation extends React.Component {
             "phone": phone
         };
         const fullName = `${firstName} ${lastName}`;
-        const disocountPerProduct = discount / cart.length;
+        const disocountPerProduct = Math.round( discount / cart.length );
         if (cart.length !== 0 && cart instanceof Array) {
             cart.forEach(function(item) {
                 lineItems.push({ 
                     "product_id": item.product.id, 
                     "quantity": item.quantity,
-                    "price": item.product.product,
-                    "total": total - disocountPerProduct,
-                    "subtotal": total,
+                    "price": item.product.price,
+                    "total": (parseInt(item.product.price) - disocountPerProduct).toString(),
+                    "subtotal": item.product.price,
                 });
                 orderNoteData.push(`For ${item.product.name} Color = ${item.color} Size = ${item.size} Character = ${item.character} `);
             }, this);

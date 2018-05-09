@@ -28,6 +28,8 @@ class NewProductsListScreen extends React.Component {
             refreshing: false,
             subCats: [],
             subProducts: [],
+            loadingMore: false,
+            noMoreProducts: false
         };
     }
 
@@ -38,36 +40,47 @@ class NewProductsListScreen extends React.Component {
 
     makeRemoteRequest = () => {
         const query = this.props.navigation.state.params.query;
-
         try {
           fetch(`${query}&per_page=10&page=${this.state.page}`)
             .then(res => res.json())
             .then(res => {
             this.setState({
-                data: this.state.page === 2 ? res : [...this.state.data, ...res],
+                data: this.state.page <= 2 ? res : [...this.state.data, ...res],
                 loading: false,
-                refreshing: false
+                refreshing: false,
+                loadingMore: false
             });
         });
         } catch (error) {
           console.error(error);
           this.setState({
               error,
-              loading: false
+              loading: false,
+              refreshing: false,
           });
         }
     };
 
     handleLoadMore = () => {
-        this.setState(
-            {
-            page: this.state.page + 1
-            },
-            () => {
-            this.makeRemoteRequest();
-            }
-        );
+        if( !this.state.noMoreProducts ){
+            this.setState(
+                {
+                page: this.state.page + 1,
+                loadingMore: true
+                },
+                () => {
+                this.makeRemoteRequest();
+                }
+            );
+        }
     };
+
+    handleRefresh = () => {
+        this.setState({
+            refreshing: true,
+            page: 2
+        }, () => this.makeRemoteRequest());
+    }
     
     render() {
         const { data, loading } = this.state;
@@ -88,6 +101,9 @@ class NewProductsListScreen extends React.Component {
                         data={data} 
                         onEndReached={this.handleLoadMore}
                         navigation={this.props.navigation}
+                        loading={this.state.loadingMore}
+                        refreshing={this.state.refreshing}
+                        onRefresh={() => this.handleRefresh()}
                     />
                 }
 

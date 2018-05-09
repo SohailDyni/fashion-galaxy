@@ -528,10 +528,18 @@ class CartScreen extends React.Component {
                                            break;
                                         }
                                     }
+                                    const discount1 = discount + codeDiscount;
 
                                     if (hasProds) {
-                                        navigation.navigate('Checkout', 
-                                        { total, shipping, discount: discount + codeDiscount, couponLines });
+                                        if(toPay < 1300 && discount1 > 0){
+                                            Alert.alert('Order Limit', 'Minimum order ammount is 1200');
+                                        } else if(toPay < 700 && discount1 == 0){
+                                            Alert.alert('Order Limit', 'Minimum order ammount is 600');
+                                        } else{
+                                            navigation.navigate('Checkout', 
+                                            { total, shipping, discount: discount1, couponLines });
+                                        }
+                                        
                                     } else {
                                         Alert.alert('No Product Selected', 'Please select any product to continue.');
                                     }

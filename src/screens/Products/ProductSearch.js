@@ -28,6 +28,8 @@ class ProductSearch extends React.Component {
             subCats: [],
             subProducts: [],
             noProducts: false,
+            loadingMore: false,
+            noMoreProducts: false,
         };
     }
 
@@ -51,13 +53,22 @@ class ProductSearch extends React.Component {
                     this.setState({
                         data: this.state.page === 1 ? res : [...this.state.data, ...res],
                         loading: false,
-                        refreshing: false
+                        refreshing: false,
+                        loadingMore: false,
                     });
-                } else {
+                } else if( this.state.page === 1 ) {
                     this.setState({
                         noProducts: true,
                         loading: false,
-                        refreshing: false
+                        refreshing: false,
+                        loadingMore: false
+                    });
+                } else {
+                    this.setState({
+                        loading: false,
+                        refreshing: false,
+                        loadingMore: false,
+                        noMoreProducts: true
                     });
                 }
             });
@@ -71,18 +82,29 @@ class ProductSearch extends React.Component {
     };
 
     handleLoadMore = () => {
-        this.setState(
-            {
-            page: this.state.page + 1
-            },
-            () => {
-            this.makeRemoteRequest();
-            }
-        );
+        if (!this.state.noMoreProducts) {
+            this.setState(
+                {
+                page: this.state.page + 1,
+                loadingMore: true
+                },
+                () => {
+                this.makeRemoteRequest();
+                }
+            );
+        }
     };
 
+    handleRefresh = () => {
+        this.setState({
+            refreshing: true,
+            page: 1,
+            data: []
+        }, () => this.makeRemoteRequest());
+    }
+
     renderContent() {
-        const { data, noProducts } = this.state;
+        const { data, noProducts, loadingMore } = this.state;
         if (noProducts) {
             return (
                 <View
@@ -97,6 +119,9 @@ class ProductSearch extends React.Component {
                 data={data} 
                 onEndReached={this.handleLoadMore}
                 navigation={this.props.navigation}
+                loading={this.state.loadingMore}
+                refreshing={this.state.refreshing}
+                onRefresh={() => this.handleRefresh()}
             />
             
         );

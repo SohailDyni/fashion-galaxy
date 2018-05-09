@@ -1,11 +1,11 @@
 {
   "expo": {
     "name": "Fashion Galaxy",
-    "description": "An empty new project",
+    "description": "Online Shopping Store in Pakistan",
     "slug": "fashiongalaxypk",
     "privacy": "public",
     "sdkVersion": "23.0.0",
-    "version": "1.1.0",
+    "version": "2.2.0",
     "orientation": "portrait",
     "primaryColor": "#cccccc",
     "icon": "./assets/icon.png",
@@ -15,11 +15,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "bundleIdentifier": "com.fashionglalxypk.fashiongalaxy",
+      "bundleIdentifier": "com.fashiongalaxypk.fashiongalaxy",
       "supportsTablet": true
     },
     "android": {
-      "package": "com.fashionglalxypk.fashiongalaxy"
+      "package": "com.fashiongalaxypk.fashiongalaxy",
+      "versionCode": 220
     }
   }
 }

@@ -1,0 +1,28 @@
+$key = 'PANDA';
+$key_len = strlen($key);
+$key_index = 0;
+$msg = 'I LIKE';
+
+for($i=0,$n=strlen($msg); $i<$n; $i++){
+   $map = $key[$key_index % $key_len];
+   if(ctype_alpha($msg[$i])){
+     echo chr( ((ord($msg[$i]) - 65 + ( ord($map) - 65 )) % 26) + 65  );
+        $key_index++;
+   }
+  else{
+     echo $msg[$i];
+    }
+   
+}
+
+$key = '8899';
+$key_len = strlen($key);
+$key_index = 0;
+$msg = '0315';
+
+for($i=0,$n=strlen($msg); $i<$n; $i++){
+   $map = $key[$key_index % $key_len];
+     echo chr( ((ord($msg[$i]) - 48 + ( ord($map) - 48 )) % 10) + 48  );
+        $key_index++;
+
+}

@@ -1,5 +1,6 @@
 import Expo from 'expo';
 import React from 'react';
+import { View } from 'react-native';
 import { TabNavigator, StackNavigator, } from 'react-navigation';
 import { Provider } from 'react-redux';
 
@@ -17,6 +18,7 @@ import Shipping from './src/screens/Checkout/Shipping';
 import Confirmation from './src/screens/Checkout/Confirmation';
 import ThankYou from './src/screens/Checkout/ThankYou';
 import { themeColors } from './src/MaterialValues';
+import AdBanner from './src/components/AdBanner';
 
 export default class App extends React.Component {
 
@@ -113,7 +115,10 @@ export default class App extends React.Component {
 	}
 	return (
 			<Provider store={store}>
-				{<MainNavigator screenProps={{ colors }} />}
+				<View style={{ flex: 1 }}>
+					{<MainNavigator screenProps={{ colors }} />}
+					<AdBanner />
+				</View>
 			</Provider>
 		);
 	}

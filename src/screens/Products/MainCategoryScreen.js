@@ -35,6 +35,8 @@ class MainCategoryScreen extends React.Component {
             subCats: [],
             subProducts: [],
             noProducts: false,
+            loadingMore: false,
+            noMoreProducts: false
         };
     }
     
@@ -66,12 +68,15 @@ class MainCategoryScreen extends React.Component {
                     this.setState({
                         data: this.state.data.concat(res),
                         loading: false,
-                        refreshing: false
+                        refreshing: false,
+                        loadingMore: false,
                     });
                 } else {
                     this.setState({
                         loading: false,
-                        refreshing: false
+                        refreshing: false,
+                        loadingMore: false,
+                        noMoreProducts: true
                     });
                 }
             }).catch(error => console.log(error));
@@ -86,7 +91,6 @@ class MainCategoryScreen extends React.Component {
 
     makeRemoteRequestForCats = () => {
         const catId = this.props.navigation.state.params.catId;
-        
         try {
           fetch(`https://fashiongalaxy.pk/wp-json/wc/v2/products/categories?parent=${catId}&per_page=20&consumer_key=ck_f67cf0524d5255e440c15b79eefd5baf3727e9b4&consumer_secret=cs_bd2d40e087738b7fcad5f576ba426cb20efaca5a&hide_empty=true`)
             .then(res => res.json())
@@ -107,15 +111,26 @@ class MainCategoryScreen extends React.Component {
     }
 
     handleLoadMore = () => {
-        this.setState(
-            {
-            page: this.state.page + 1
-            },
-            () => {
-            this.makeRemoteRequest();
-            }
-        );
+        if (!this.state.noMoreProducts) {
+            this.setState(
+                {
+                page: this.state.page + 1,
+                loadingMore: true
+                },
+                () => {
+                this.makeRemoteRequest();
+                }
+            );
+        }
     };
+
+    handleRefresh = () => {
+        this.setState({
+            refreshing: true,
+            page: 1,
+            data: []
+        }, () => this.makeRemoteRequest());
+    }
 
     renderContent() {
         const { loading, noProducts, data, subCats } = this.state;
@@ -145,6 +160,7 @@ class MainCategoryScreen extends React.Component {
             ));
             return (
                 <Tabs 
+                    locked
                     renderTabBar={() => <ScrollableTab style={{ backgroundColor: themeColors.color2 }} />}
                 >
                     <Tab 
@@ -181,6 +197,9 @@ class MainCategoryScreen extends React.Component {
                                 data={data} 
                                 onEndReached={this.handleLoadMore}
                                 navigation={this.props.navigation}
+                                loading={this.state.loadingMore}
+                                refreshing={this.state.refreshing}
+                                onRefresh={() => this.handleRefresh()}
                             />                          
                         }
 
@@ -204,6 +223,9 @@ class MainCategoryScreen extends React.Component {
                         data={data} 
                         onEndReached={this.handleLoadMore}
                         navigation={this.props.navigation}
+                        loading={this.state.loadingMore}
+                        refreshing={this.state.refreshing}
+                        onRefresh={() => this.handleRefresh()}
                     /> 
                 }
                 {noProducts && 

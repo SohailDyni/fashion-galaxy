@@ -10,7 +10,8 @@ import {
   TouchableOpacity,
   FlatList, Image,
   ScrollView,
-  Alert
+  Alert,
+  CameraRoll
 } from 'react-native';
 import {  
     Card, Button, Icon, Title,
@@ -23,6 +24,8 @@ import Animation from 'lottie-react-native';
 import IconBadge from 'react-native-icon-badge';
 import WebHtmlView from 'react-native-webhtmlview';
 import Lightbox from 'react-native-lightbox';
+import Toast from 'react-native-simple-toast';
+import { FileSystem, Permissions } from 'expo';
 
 import { metrics, fonts, themeColors } from '../../MaterialValues';
 import * as actions from '../../actions';
@@ -134,7 +137,7 @@ class ProductDetailScreen extends Component {
     toggleModal = () => {
         Alert.alert(
             'Item added to Cart',
-            `You have ${this.props.cartLength} ${this.props.cartLength > 1 ? 'items ' : 'item '} in cart.`,
+            `You have ${this.props.cartLength + 1} ${this.props.cartLength+1 > 1 ? 'items ' : 'item '} in cart.`,
             [
               { text: 'Continue Shopping', onPress: () => console.log('Cancel Pressed'), style: 'cancel' },
               { text: 'Go to Cart', onPress: () => this.props.navigation.navigate('CartScreen') },
@@ -193,15 +196,19 @@ class ProductDetailScreen extends Component {
 
     renderPage(image, index) {
         const { src } = image;
+        const uri = this.getProductThumbnailMain(src);
         return (
             <Lightbox 
                 key={index}
+                downloadImage={() => this.downloadImage(uri)}
             >
-                <Image 
-                    style={styles.bannerImage} 
-                    source={{ uri: this.getProductThumbnailMain(src) }} 
-                    resizeMode='cover' 
-                />
+                <View>
+                    <Image 
+                        style={styles.bannerImage} 
+                        source={{ uri }} 
+                        resizeMode='cover' 
+                    />
+                </View>
                 {/* <ResponsiveImage 
                     source={{ uri: this.getProductThumbnailMain(src) }} 
                     initWidth={414} 
@@ -211,6 +218,23 @@ class ProductDetailScreen extends Component {
 
             </Lightbox>
         );
+    }
+
+    downloadImage = async url => {
+        Toast.show('Downloading...', Toast.LONG);
+        const slashes = url.split('/');
+        const fileName = slashes[slashes.length-1];
+        let { uri } = await FileSystem.downloadAsync(url, FileSystem.cacheDirectory + fileName)
+        const { status } = await Permissions.askAsync(Permissions.CAMERA_ROLL);
+
+    if (status === 'granted') {
+    
+        CameraRoll.saveToCameraRoll(uri).then((uriGallery) => {
+            Toast.show('Downloading Complete');
+            FileSystem.deleteAsync(uri);
+        })
+        .catch(e => console.log(e));
+    }
     }
    
     render() {
@@ -984,6 +1008,13 @@ const styles = StyleSheet.create({
     },
     RPpriceStyle: {
         fontWeight: 'bold',
+    },
+    downloadBtn: {
+        zIndex: 10,
+        marginTop: 10,
+    },
+    downloadTxt: {
+        color: '#fff',
     }
 });
   

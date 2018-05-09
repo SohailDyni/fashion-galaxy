@@ -62,8 +62,9 @@ export default class ProductRows extends React.Component {
     onCardPressed = product => this.props.navigation.navigate('ProductDetail', { product });    
     
 
-    renderProduct = (product) => (
-        <ListItem 
+    renderProduct = (product, index) => (
+        <ListItem
+            key={index} 
             product={product}
             navigation={this.props.navigation}
             navigation={this.props.navigation}
@@ -71,9 +72,12 @@ export default class ProductRows extends React.Component {
     );
 
     renderFooter = () => {
-        return (<View style={{ alignItems: 'center', justifyContent: 'center' }}>
-            <Spinner size="small" />
-        </View>);
+        const { loading } = this.props;
+        return (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+                {loading && <Spinner size="small" />}
+            </View>
+        );
     }
     
     
@@ -94,7 +98,7 @@ export default class ProductRows extends React.Component {
                 {...this.props}
                 numColumns={2}
                 data={data}
-                renderItem={({ item }) => this.renderProduct(item)}
+                renderItem={({ item, index }) => this.renderProduct(item, index)}
                 keyExtractor={(item) => item.id}
                 onEndReachedThreshold={350}
                 ListFooterComponent={() => this.renderFooter()}
